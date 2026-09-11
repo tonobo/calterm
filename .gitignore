@@ -1,0 +1,6 @@
+/calterm
+/dist/
+
+# Local agent and planning artifacts.
+/.superpowers/
+/docs/superpowers/

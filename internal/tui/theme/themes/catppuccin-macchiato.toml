@@ -1,0 +1,30 @@
+# Catppuccin Macchiato -- catppuccin.com/palette, dark flavour.
+name = "Catppuccin Macchiato"
+mode = "dark"
+
+fg     = "#cad3f5"
+dim    = "#a5adcb"
+accent = "#8aadf4"
+warn   = "#ed8796"
+success = "#a6da95"
+pending = "#eed49f"
+
+grid_line = "#494d64"
+
+selected_fg = "#8aadf4"
+selected_bg = "#363a4f"
+
+status_fg = "#a5adcb"
+status_bg = "#1e2030"
+status_key_fg = "#1e2030"
+status_key_bg = "#8aadf4"
+status_dim_fg = "#a5adcb"
+
+calendar_palette = [
+  "#8aadf4",
+  "#a6da95",
+  "#eed49f",
+  "#c6a0f6",
+  "#8bd5ca",
+  "#ed8796",
+]

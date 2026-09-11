@@ -1,0 +1,30 @@
+# Catppuccin Mocha -- catppuccin.com/palette, dark flavour.
+name = "Catppuccin Mocha"
+mode = "dark"
+
+fg     = "#cdd6f4"
+dim    = "#a6adc8"
+accent = "#89b4fa"
+warn   = "#f38ba8"
+success = "#a6e3a1"
+pending = "#f9e2af"
+
+grid_line = "#45475a"
+
+selected_fg = "#89b4fa"
+selected_bg = "#313244"
+
+status_fg = "#a6adc8"
+status_bg = "#181825"
+status_key_fg = "#181825"
+status_key_bg = "#89b4fa"
+status_dim_fg = "#a6adc8"
+
+calendar_palette = [
+  "#89b4fa",
+  "#a6e3a1",
+  "#f9e2af",
+  "#cba6f7",
+  "#94e2d5",
+  "#f38ba8",
+]

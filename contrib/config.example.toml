@@ -1,0 +1,82 @@
+# calterm configuration. Copy to $XDG_CONFIG_HOME/calterm/config.toml
+# (usually ~/.config/calterm/config.toml).
+
+[[account]]
+name = "personal"
+# The CalDAV entry point. calterm discovers your calendars from here, so the
+# server root is usually enough — you do not need a per-calendar URL.
+#   Nextcloud: https://cloud.example.com/remote.php/dav
+#   Radicale:  https://radicale.example.com/
+url = "https://cloud.example.com/remote.php/dav"
+username = "calendar-user"
+# Run without a shell; the first line of output is used as the password.
+# Works with pass, gopass, 1Password, secret-tool, and anything similar.
+password_cmd = "pass show caldav/nextcloud"
+# Optional scheduling identity. With this set, calterm marks your own ATTENDEE
+# status and can accept or decline through the original CalDAV event. The email
+# must match the event's mailto: ATTENDEE address.
+# email = "calendar-user@example.com"
+# Only for a self-hosted server with a self-signed certificate.
+# insecure_skip_verify = false
+
+# A second account is just another block.
+# [[account]]
+# name = "work"
+# url = "https://dav.work.example/"
+# username = "t.example"
+# password_cmd = "secret-tool lookup service caldav-work"
+
+# Read-only iCalendar subscriptions need no account or credentials. https://
+# and webcal:// links are both accepted; webcal:// is fetched securely over
+# HTTPS. A failed refresh keeps the last valid cached copy.
+# [[webcal]]
+# name = "holidays"
+# url = "webcal://calendar.example/holidays.ics"
+# color = "#8aadf4"
+
+[waybar]
+# An event starting within this window is classed "soon".
+lead_time = "15m"
+# If the cache is older than this, the module reports "stale" — your signal
+# that the sync timer has stopped.
+stale_after = "2h"
+text_format = "{start} {summary}"
+# One line per event: "09:00–11:00 · Standup", or "full day · Vacation" for an
+# all-day event. {location} and {calendar} are also available -- add them
+# back if you want them, e.g. "{start}–{end} · {summary} · {location}".
+tooltip_format = "{start}–{end} · {summary}"
+# How many days ahead the tooltip's event list looks, how many events it
+# lists at most, and the heading/footer lines around that list. An empty
+# heading or footer is omitted entirely rather than left as a blank line.
+tooltip_days = 7
+tooltip_max = 10
+tooltip_heading = "Upcoming"
+# Go time layout for each day's header line within the tooltip list.
+tooltip_date_fmt = "Mon 2 Jan"
+# Replaces the "all day" text shown for date-valued events.
+all_day_label = "all day"
+tooltip_footer = ""
+
+# One possible customization of the six keys above:
+# tooltip_days = 7
+# tooltip_max = 10
+# tooltip_heading = "Upcoming events"
+# tooltip_date_fmt = "02.01."
+# all_day_label = "full day"
+# tooltip_footer = "Left click: calendar · right click: sync"
+
+[ui]
+# agenda, month, week, or day
+default_view = "agenda"
+# monday or sunday
+week_start = "monday"
+
+[calendars]
+# Calendars to hide from the TUI and waybar, as "account/calendar" entries
+# (the account name from [[account]] above and the calendar's ID). WebCal
+# entries use "webcal/<name>". calterm
+# still syncs a hidden calendar's events -- they stay in the local cache --
+# it just does not display them. The easiest way to fill this in is the
+# selector inside the TUI: press c, toggle with enter, and it writes this
+# list for you.
+hidden = []

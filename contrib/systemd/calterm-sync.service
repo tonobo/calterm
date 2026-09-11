@@ -1,0 +1,15 @@
+[Unit]
+Description=Sync CalDAV calendars into the calterm cache
+Documentation=https://github.com/tonobo/calterm
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/go/bin/calterm sync --quiet
+# `calterm sync` exits 1 if any account fails, so systemd marks this unit
+# failed on such a run and it shows up in `systemctl --user --failed`. That is
+# deliberate: the cache keeps serving the previous data, and the next timer
+# tick clears the failure on its own, but a persistent failure (an expired
+# password, a server that has moved) stays visible instead of being masked.
+# Add `SuccessExitStatus=0 1` here if you would rather not see it.

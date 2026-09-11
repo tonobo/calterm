@@ -1,0 +1,19 @@
+// Add to the "modules-right" (or wherever you like) array in your Waybar
+// config, then merge this object into the same file.
+{
+  "custom/calterm": {
+    "format": "{icon} {}",
+    "format-icons": {
+      "now": "",
+      "soon": "",
+      "upcoming": "",
+      "none": "",
+      "stale": ""
+    },
+    "return-type": "json",
+    "exec": "calterm waybar",
+    "interval": 30,
+    "tooltip": true,
+    "on-click": "foot -e calterm"
+  }
+}

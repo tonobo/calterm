@@ -1,0 +1,30 @@
+# Catppuccin Latte -- catppuccin.com/palette, light flavour.
+name = "Catppuccin Latte"
+mode = "light"
+
+fg     = "#4c4f69"
+dim    = "#6c6f85"
+accent = "#1e66f5"
+warn   = "#d20f39"
+success = "#40a02b"
+pending = "#df8e1d"
+
+grid_line = "#bcc0cc"
+
+selected_fg = "#1e66f5"
+selected_bg = "#ccd0da"
+
+status_fg = "#6c6f85"
+status_bg = "#e6e9ef"
+status_key_fg = "#e6e9ef"
+status_key_bg = "#1e66f5"
+status_dim_fg = "#6c6f85"
+
+calendar_palette = [
+  "#1e66f5",
+  "#40a02b",
+  "#df8e1d",
+  "#8839ef",
+  "#179299",
+  "#d20f39",
+]

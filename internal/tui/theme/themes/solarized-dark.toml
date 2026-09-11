@@ -1,0 +1,30 @@
+# Solarized Dark -- ethanschoonover.com/solarized.
+name = "Solarized Dark"
+mode = "dark"
+
+fg     = "#839496"
+dim    = "#586e75"
+accent = "#268bd2"
+warn   = "#dc322f"
+success = "#859900"
+pending = "#b58900"
+
+grid_line = "#586e75"
+
+selected_fg = "#268bd2"
+selected_bg = "#073642"
+
+status_fg = "#586e75"
+status_bg = "#073642"
+status_key_fg = "#073642"
+status_key_bg = "#268bd2"
+status_dim_fg = "#586e75"
+
+calendar_palette = [
+  "#268bd2",
+  "#859900",
+  "#b58900",
+  "#d33682",
+  "#2aa198",
+  "#dc322f",
+]

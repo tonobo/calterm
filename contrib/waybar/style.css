@@ -1,0 +1,39 @@
+/* calterm status module. The `class` field of calterm's JSON output drives
+   these rules; every class calterm can emit has a rule here. */
+
+#custom-calterm {
+  padding: 0 10px;
+}
+
+/* An event is happening right now. */
+#custom-calterm.now {
+  color: #1e1e2e;
+  background-color: #a6e3a1;
+  font-weight: bold;
+}
+
+/* An event starts within the configured lead time (default 15 minutes). */
+#custom-calterm.soon {
+  color: #1e1e2e;
+  background-color: #f9e2af;
+  font-weight: bold;
+}
+
+/* The next event is further out than the lead time. */
+#custom-calterm.upcoming {
+  color: #cdd6f4;
+}
+
+/* Nothing left in the indexed window. */
+#custom-calterm.none {
+  color: #6c7086;
+}
+
+/* The cache is older than stale_after: the sync timer is probably dead.
+   This is the state worth making loud — a silently stale bar is worse than
+   an obviously broken one. */
+#custom-calterm.stale {
+  color: #1e1e2e;
+  background-color: #f38ba8;
+  font-weight: bold;
+}

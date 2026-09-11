@@ -1,0 +1,30 @@
+# Catppuccin Frappé -- catppuccin.com/palette, dark flavour.
+name = "Catppuccin Frappé"
+mode = "dark"
+
+fg     = "#c6d0f5"
+dim    = "#a5adce"
+accent = "#8caaee"
+warn   = "#e78284"
+success = "#a6d189"
+pending = "#e5c890"
+
+grid_line = "#51576d"
+
+selected_fg = "#8caaee"
+selected_bg = "#414559"
+
+status_fg = "#a5adce"
+status_bg = "#292c3c"
+status_key_fg = "#292c3c"
+status_key_bg = "#8caaee"
+status_dim_fg = "#a5adce"
+
+calendar_palette = [
+  "#8caaee",
+  "#a6d189",
+  "#e5c890",
+  "#ca9ee6",
+  "#81c8be",
+  "#e78284",
+]
