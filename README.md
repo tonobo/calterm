@@ -8,6 +8,23 @@ and direct CalDAV invitation responses.
 - **Offline** — everything reads a local cache. The status bar never touches the network.
 - **Correct recurrences** — RRULE, RDATE, EXDATE, and RECURRENCE-ID overrides, including cancellations and DST transitions.
 
+## Screenshots
+
+The screenshots use a fully synthetic calendar; no real account or event data
+is included.
+
+### Month
+
+![Month view showing a color-coded calendar grid](docs/assets/month.png)
+
+### Week
+
+![Week view showing events on a timeline](docs/assets/week.png)
+
+### Invitation detail
+
+![Event detail showing RSVP state and attendees](docs/assets/event-detail.png)
+
 ## Install
 
 ```bash
