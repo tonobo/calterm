@@ -30,6 +30,8 @@ email = "calendar-user@example.com"
 name = "waste"
 url = "webcal://calendar.example/waste.ics"
 color = "#8aadf4"
+username = "feed-user"
+password_cmd = "pass show webcal/example"
 
 [waybar]
 lead_time = "20m"
@@ -58,6 +60,9 @@ hidden = ["birthdays"]
 	}
 	if len(cfg.WebCals) != 1 || cfg.WebCals[0].Name != "waste" || cfg.WebCals[0].Color != "#8aadf4" {
 		t.Errorf("webcal feeds = %+v", cfg.WebCals)
+	}
+	if cfg.WebCals[0].Username != "feed-user" || cfg.WebCals[0].PasswordCmd != "pass show webcal/example" {
+		t.Errorf("webcal credentials = %+v", cfg.WebCals[0])
 	}
 	if cfg.Waybar.LeadTime != 20*time.Minute {
 		t.Errorf("lead_time = %v, want 20m", cfg.Waybar.LeadTime)
@@ -274,6 +279,14 @@ url = "file:///tmp/feed.ics"`},
 name = "feed"
 url = "https://calendar.example/feed.ics"
 color = "blue"`},
+		{"webcal username without password command", `[[webcal]]
+name = "feed"
+url = "https://calendar.example/feed.ics"
+username = "feed-user"`},
+		{"webcal password command without username", `[[webcal]]
+name = "feed"
+url = "https://calendar.example/feed.ics"
+password_cmd = "echo secret"`},
 		{"duplicate webcal names", `[[webcal]]
 name = "feed"
 url = "https://calendar.example/a.ics"

@@ -82,6 +82,27 @@ func TestSyncCachesFeedAndUsesConditionalRequest(t *testing.T) {
 	}
 }
 
+func TestSyncUsesOptionalBasicAuthentication(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if !ok || username != "feed-user" || password != "feed-password" {
+			t.Errorf("BasicAuth = %q, %q, %v", username, password, ok)
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		_, _ = w.Write([]byte(validFeed))
+	}))
+	defer server.Close()
+
+	feed := config.WebCal{
+		Name: "authenticated", URL: server.URL,
+		Username: "feed-user", PasswordCmd: "printf feed-password",
+	}
+	if _, err := Sync(context.Background(), server.Client(), store.New(t.TempDir()), feed); err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+}
+
 func TestMalformedRefreshKeepsPreviousFeed(t *testing.T) {
 	body := validFeed
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

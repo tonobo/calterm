@@ -33,6 +33,10 @@ password_cmd = "pass show caldav/nextcloud"
 # name = "holidays"
 # url = "webcal://calendar.example/holidays.ics"
 # color = "#8aadf4"
+# Optional HTTP Basic authentication, for example with an identity proxy app
+# password. Configure both fields or neither.
+# username = "calendar-user"
+# password_cmd = "secret-tool lookup service webcal-example"
 
 [waybar]
 # An event starting within this window is classed "soon".

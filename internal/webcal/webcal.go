@@ -64,6 +64,14 @@ func Sync(ctx context.Context, client *http.Client, s *store.Store, feed config.
 		return Result{}, fmt.Errorf("creating feed request: %w", err)
 	}
 	req.Header.Set("Accept", "text/calendar, text/plain;q=0.9, */*;q=0.1")
+	if feed.Username != "" {
+		password, err := feed.Password()
+		if err != nil {
+			return Result{}, err
+		}
+		req.SetBasicAuth(feed.Username, password)
+		password = ""
+	}
 	if hasPrevious && previous.ETag != "" {
 		req.Header.Set("If-None-Match", previous.ETag)
 	}

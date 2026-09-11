@@ -44,9 +44,13 @@ Both `https://` and `webcal://` links are accepted:
 name = "waste"
 url = "webcal://calendar.example/waste.ics"
 # color = "#8aadf4"
+# Optional HTTP Basic authentication:
+# username = "calendar-user"
+# password_cmd = "pass show webcal/example"
 ```
 
-WebCal subscriptions require no credentials. They participate in the normal
+WebCal subscriptions require no credentials by default and optionally support
+HTTP Basic authentication through `username` and `password_cmd`. They participate in the normal
 parallel sync, remain available from the last good copy while offline, and are
 strictly read-only: calterm never uploads, imports, or responds through them.
 
@@ -234,7 +238,7 @@ during a sync never sees a half-written file.
 - No creating, general editing, or moving events. The only write operation is
   accepting or declining an invitation on its original CalDAV resource.
 - WebCal subscriptions are read-only.
-- HTTP Basic auth only. No OAuth2, so Google Calendar works only via an
+- HTTP Basic auth only, including optional WebCal credentials. No OAuth2, so Google Calendar works only via an
   app-specific CalDAV endpoint, not the native API.
 - No tasks (`VTODO`) or free/busy lookup.
 

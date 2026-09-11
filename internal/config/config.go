@@ -29,6 +29,8 @@ type WebCal struct {
 	Name               string `toml:"name"`
 	URL                string `toml:"url"`
 	Color              string `toml:"color"`
+	Username           string `toml:"username"`
+	PasswordCmd        string `toml:"password_cmd"`
 	InsecureSkipVerify bool   `toml:"insecure_skip_verify"`
 }
 
@@ -193,6 +195,8 @@ func (c *Config) validate() error {
 			return fmt.Errorf("webcal %q: url is required", feed.Name)
 		case webcalNames[feed.Name]:
 			return fmt.Errorf("duplicate webcal name %q", feed.Name)
+		case (feed.Username == "") != (feed.PasswordCmd == ""):
+			return fmt.Errorf("webcal %q: username and password_cmd must be configured together", feed.Name)
 		}
 		u, err := url.Parse(feed.URL)
 		scheme := ""

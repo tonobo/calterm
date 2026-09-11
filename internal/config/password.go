@@ -51,25 +51,34 @@ func SplitCommand(s string) ([]string, error) {
 
 // Password runs the account's password_cmd and returns its first output line.
 func (a Account) Password() (string, error) {
-	if a.PasswordCmd == "" {
-		return "", fmt.Errorf("account %q: password_cmd is not set", a.Name)
+	return commandValue("account", a.Name, a.PasswordCmd)
+}
+
+// Password runs the feed's password_cmd and returns its first output line.
+func (w WebCal) Password() (string, error) {
+	return commandValue("webcal", w.Name, w.PasswordCmd)
+}
+
+func commandValue(kind, name, command string) (string, error) {
+	if command == "" {
+		return "", fmt.Errorf("%s %q: password_cmd is not set", kind, name)
 	}
-	argv, err := SplitCommand(a.PasswordCmd)
+	argv, err := SplitCommand(command)
 	if err != nil {
-		return "", fmt.Errorf("account %q: %w", a.Name, err)
+		return "", fmt.Errorf("%s %q: %w", kind, name, err)
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("account %q: password_cmd %q failed: %w: %s",
-			a.Name, a.PasswordCmd, err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("%s %q: password_cmd %q failed: %w: %s",
+			kind, name, command, err, strings.TrimSpace(stderr.String()))
 	}
 	line, _, _ := strings.Cut(string(out), "\n")
 	line = strings.TrimRight(line, " \t\r")
 	if line == "" {
-		return "", fmt.Errorf("account %q: password_cmd %q produced no output", a.Name, a.PasswordCmd)
+		return "", fmt.Errorf("%s %q: password_cmd %q produced no output", kind, name, command)
 	}
 	return line, nil
 }
