@@ -3,6 +3,9 @@
 A cache-first CalDAV and WebCal calendar for the terminal, with a Waybar module
 and direct CalDAV invitation responses.
 
+> [!NOTE]
+> This project is 100% vibe-coded.
+
 - **TUI** — agenda, month grid, week/day timeline, and event detail, built with Bubble Tea.
 - **Waybar** — `calterm waybar` prints your next event as a JSON status line.
 - **Offline** — everything reads a local cache. The status bar never touches the network.
