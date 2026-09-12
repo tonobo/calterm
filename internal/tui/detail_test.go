@@ -16,6 +16,7 @@ func detailFixture() model.Occurrence {
 		Summary:     "Design review",
 		Location:    "Room 2",
 		Description: "Walk through the new onboarding flow and agree next steps.",
+		Categories:  []string{"Class A", "Class B"},
 		URL:         "https://example.com/meeting",
 		Start:       time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC),
 		End:         time.Date(2026, 6, 10, 15, 0, 0, 0, time.UTC),
@@ -28,7 +29,7 @@ func detailFixture() model.Occurrence {
 func TestRenderDetailShowsEveryField(t *testing.T) {
 	got := RenderDetail(detailFixture(), 80, 24, time.UTC, NewStyles(true), testNames)
 	for _, want := range []string{
-		"Design review", "Room 2", "onboarding flow",
+		"Design review", "Room 2", "Class A, Class B", "onboarding flow",
 		"https://example.com/meeting", "Work", "14:00", "15:00",
 	} {
 		if !strings.Contains(got, want) {

@@ -91,6 +91,16 @@ func TestRenderAgendaShowsTimesAndAllDay(t *testing.T) {
 	}
 }
 
+func TestRenderAgendaShowsCategoriesBeforeSummary(t *testing.T) {
+	now := time.Date(2026, 6, 10, 8, 0, 0, 0, time.UTC)
+	o := occ("grouped", "Planning", now.Add(time.Hour), time.Hour)
+	o.Categories = []string{"Class A", "Class B"}
+	got := stripANSI(RenderAgenda([]model.Occurrence{o}, 0, 80, 24, now, time.UTC, NewStyles(true), testNames, false))
+	if !strings.Contains(got, "[Class A, Class B] Planning") {
+		t.Errorf("agenda is missing event categories:\n%s", got)
+	}
+}
+
 // A multi-day absence which began before the visible agenda context must not
 // disappear while the week view still shows it on today. Carry it into today's
 // group, matching the day/week overlap semantics.

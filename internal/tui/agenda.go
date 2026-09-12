@@ -165,6 +165,9 @@ func renderAgendaRow(o model.Occurrence, selected bool, width int, loc *time.Loc
 	if summary == "" {
 		summary = "(no title)"
 	}
+	if categories := categoryLabel(o.Categories); categories != "" {
+		summary = "[" + categories + "] " + summary
+	}
 
 	summaryStyle := st.Summary
 	if selected {

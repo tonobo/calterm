@@ -47,6 +47,7 @@ func RenderDetail(o model.Occurrence, width, height int, loc *time.Location, st 
 
 	add("When", formatWhen(o, loc))
 	add("Location", o.Location)
+	add("Categories", categoryLabel(o.Categories))
 	if name, ok := names[o.CalendarKey()]; ok && name != "" {
 		add("Calendar", name)
 	} else if o.CalendarID != "" {
@@ -222,6 +223,24 @@ func participationSummary(o model.Occurrence) string {
 		return o.Summary
 	}
 	return participationSymbol(o.AttendeeStatus) + " " + o.Summary
+}
+
+func categoryLabel(categories []string) string {
+	seen := map[string]struct{}{}
+	values := make([]string, 0, len(categories))
+	for _, category := range categories {
+		category = strings.Join(strings.Fields(category), " ")
+		key := strings.ToLower(category)
+		if category == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		values = append(values, category)
+	}
+	return strings.Join(values, ", ")
 }
 
 func formatWhen(o model.Occurrence, loc *time.Location) string {

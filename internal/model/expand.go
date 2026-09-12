@@ -282,6 +282,29 @@ func newOccurrence(uid string, ev *ical.Event, start, end time.Time, allDay bool
 		}
 		return u.String()
 	}
+	textList := func(name string) []string {
+		var values []string
+		seen := map[string]struct{}{}
+		for _, property := range ev.Props.Values(name) {
+			items, err := property.TextList()
+			if err != nil {
+				continue
+			}
+			for _, item := range items {
+				item = strings.TrimSpace(item)
+				key := strings.ToLower(item)
+				if item == "" {
+					continue
+				}
+				if _, exists := seen[key]; exists {
+					continue
+				}
+				seen[key] = struct{}{}
+				values = append(values, item)
+			}
+		}
+		return values
+	}
 	o := Occurrence{
 		UID:         uid,
 		Start:       start,
@@ -290,6 +313,7 @@ func newOccurrence(uid string, ev *ical.Event, start, end time.Time, allDay bool
 		Summary:     text(ical.PropSummary),
 		Location:    text(ical.PropLocation),
 		Description: text(ical.PropDescription),
+		Categories:  textList(ical.PropCategories),
 		URL:         uri(ical.PropURL),
 		Status:      text(ical.PropStatus),
 	}

@@ -86,6 +86,21 @@ func TestExpandSingleEvent(t *testing.T) {
 	}
 }
 
+func TestExpandKeepsCategories(t *testing.T) {
+	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//calterm//test//EN\r\n" +
+		"BEGIN:VEVENT\r\nUID:categories\r\nDTSTAMP:20260101T000000Z\r\n" +
+		"DTSTART:20260610T100000Z\r\nDTEND:20260610T110000Z\r\nSUMMARY:Planning\r\n" +
+		"CATEGORIES:Class A,Class B,Class A\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+
+	got, err := Expand(decodeICS(t, body), wide(), time.UTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || len(got[0].Categories) != 2 || got[0].Categories[0] != "Class A" || got[0].Categories[1] != "Class B" {
+		t.Fatalf("categories = %+v", got)
+	}
+}
+
 func TestExpandKeepsOrganizerAndAttendeeStatus(t *testing.T) {
 	body := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//calterm//test//EN\r\n" +
 		"BEGIN:VEVENT\r\nUID:invite\r\nDTSTAMP:20260101T000000Z\r\n" +

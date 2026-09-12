@@ -28,11 +28,12 @@ type Occurrence struct {
 	// them as instants makes them drift across DST boundaries.
 	AllDay bool `json:"all_day"`
 
-	Summary     string `json:"summary"`
-	Location    string `json:"location,omitempty"`
-	Description string `json:"description,omitempty"`
-	URL         string `json:"url,omitempty"`
-	Status      string `json:"status,omitempty"`
+	Summary     string   `json:"summary"`
+	Location    string   `json:"location,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Categories  []string `json:"categories,omitempty"`
+	URL         string   `json:"url,omitempty"`
+	Status      string   `json:"status,omitempty"`
 	// RRuleText is the raw RRULE of the series, kept for the detail view.
 	RRuleText string `json:"rrule,omitempty"`
 
