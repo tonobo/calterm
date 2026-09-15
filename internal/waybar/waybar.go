@@ -72,7 +72,7 @@ func Render(idx *store.OccurrenceIndex, meta *store.Meta, cfg config.WaybarConfi
 
 	tooltip := buildTooltip(occs, names, cfg, now, loc)
 
-	if current, ok := model.InProgress(occs, now); ok {
+	if current, ok := activeNowOccurrence(occs, now, cfg.NowDuration); ok {
 		out := build(current, names, cfg, now, loc, ClassNow)
 		out.Percentage = progress(current, now)
 		out.Tooltip = tooltip
@@ -91,6 +91,33 @@ func Render(idx *store.OccurrenceIndex, meta *store.Meta, cfg config.WaybarConfi
 	out := build(next, names, cfg, now, loc, class)
 	out.Tooltip = tooltip
 	return out
+}
+
+// activeNowOccurrence returns the most recently started timed event whose
+// configurable highlight window is still open. The event must also still be
+// running, so a short event never remains highlighted past its actual end.
+// Choosing the latest start matters when events overlap: a newly started
+// meeting gets its own highlight even while an older one continues running.
+func activeNowOccurrence(occs []model.Occurrence, now time.Time, window time.Duration) (model.Occurrence, bool) {
+	if window <= 0 {
+		return model.Occurrence{}, false
+	}
+
+	var active model.Occurrence
+	found := false
+	for _, o := range occs {
+		if o.AllDay || o.End.Equal(o.Start) || o.Start.After(now) || !o.End.After(now) {
+			continue
+		}
+		if now.Sub(o.Start) >= window {
+			continue
+		}
+		if !found || o.Start.After(active.Start) {
+			active = o
+			found = true
+		}
+	}
+	return active, found
 }
 
 func build(o model.Occurrence, names map[string]string, cfg config.WaybarConfig, now time.Time, loc *time.Location, class string) Output {

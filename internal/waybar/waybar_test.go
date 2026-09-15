@@ -17,6 +17,7 @@ import (
 func testConfig() config.WaybarConfig {
 	return config.WaybarConfig{
 		LeadTime:       15 * time.Minute,
+		NowDuration:    5 * time.Minute,
 		StaleAfter:     2 * time.Hour,
 		TextFormat:     "{start} {summary}",
 		TooltipFormat:  "{summary}\n{start}–{end} · {location}\n{calendar}",
@@ -91,12 +92,72 @@ func TestRenderSoonBoundaryIsInclusive(t *testing.T) {
 func TestRenderNowReportsProgress(t *testing.T) {
 	start := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
 	now := start.Add(15 * time.Minute) // halfway through a 30-minute event
-	got := Render(indexAt(now, standup(start)), testMeta(), testConfig(), nil, now, time.UTC)
+	cfg := testConfig()
+	cfg.NowDuration = 20 * time.Minute
+	got := Render(indexAt(now, standup(start)), testMeta(), cfg, nil, now, time.UTC)
 	if got.Class != ClassNow {
 		t.Errorf("Class = %q, want %q", got.Class, ClassNow)
 	}
 	if got.Percentage != 50 {
 		t.Errorf("Percentage = %d, want 50", got.Percentage)
+	}
+}
+
+func TestRenderNowDurationEndsAtConfiguredBoundary(t *testing.T) {
+	start := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
+	cfg := testConfig()
+
+	justBefore := start.Add(cfg.NowDuration - time.Nanosecond)
+	got := Render(indexAt(justBefore, standup(start)), testMeta(), cfg, nil, justBefore, time.UTC)
+	if got.Class != ClassNow {
+		t.Errorf("Class just before now_duration = %q, want %q", got.Class, ClassNow)
+	}
+
+	atBoundary := start.Add(cfg.NowDuration)
+	got = Render(indexAt(atBoundary, standup(start)), testMeta(), cfg, nil, atBoundary, time.UTC)
+	if got.Class != ClassNone {
+		t.Errorf("Class at now_duration boundary = %q, want %q", got.Class, ClassNone)
+	}
+}
+
+func TestRenderAdvancesToNextEventAfterNowDuration(t *testing.T) {
+	start := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
+	now := start.Add(10 * time.Minute)
+	next := standup(start.Add(time.Hour))
+	next.UID = "b"
+	next.Summary = "Planning"
+
+	got := Render(indexAt(now, standup(start), next), testMeta(), testConfig(), nil, now, time.UTC)
+	if got.Class != ClassUpcoming || got.Text != "15:00 Planning" {
+		t.Errorf("after now_duration got class %q text %q, want upcoming next event", got.Class, got.Text)
+	}
+}
+
+func TestRenderZeroNowDurationDisablesNowState(t *testing.T) {
+	start := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
+	now := start.Add(time.Minute)
+	next := standup(start.Add(time.Hour))
+	next.UID = "b"
+	next.Summary = "Planning"
+	cfg := testConfig()
+	cfg.NowDuration = 0
+
+	got := Render(indexAt(now, standup(start), next), testMeta(), cfg, nil, now, time.UTC)
+	if got.Class != ClassUpcoming || got.Text != "15:00 Planning" {
+		t.Errorf("zero now_duration got class %q text %q, want upcoming next event", got.Class, got.Text)
+	}
+}
+
+func TestRenderOverlappingEventGetsItsOwnNowWindow(t *testing.T) {
+	firstStart := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
+	now := firstStart.Add(11 * time.Minute)
+	second := standup(firstStart.Add(10 * time.Minute))
+	second.UID = "b"
+	second.Summary = "Planning"
+
+	got := Render(indexAt(now, standup(firstStart), second), testMeta(), testConfig(), nil, now, time.UTC)
+	if got.Class != ClassNow || got.Text != "14:10 Planning" {
+		t.Errorf("overlapping event got class %q text %q, want newly started event", got.Class, got.Text)
 	}
 }
 

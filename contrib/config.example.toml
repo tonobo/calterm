@@ -41,6 +41,9 @@ password_cmd = "pass show caldav/nextcloud"
 [waybar]
 # An event starting within this window is classed "soon".
 lead_time = "15m"
+# A running event is classed "now" only for this long after it starts. Set to
+# "0s" to disable the now state and advance immediately to the next event.
+now_duration = "5m"
 # If the cache is older than this, the module reports "stale" — your signal
 # that the sync timer has stopped.
 stale_after = "2h"

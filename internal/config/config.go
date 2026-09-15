@@ -46,12 +46,14 @@ type Account struct {
 }
 
 type WaybarConfig struct {
-	LeadTime      time.Duration `toml:"-"`
-	StaleAfter    time.Duration `toml:"-"`
-	LeadTimeRaw   string        `toml:"lead_time"`
-	StaleAfterRaw string        `toml:"stale_after"`
-	TextFormat    string        `toml:"text_format"`
-	TooltipFormat string        `toml:"tooltip_format"`
+	LeadTime       time.Duration `toml:"-"`
+	NowDuration    time.Duration `toml:"-"`
+	StaleAfter     time.Duration `toml:"-"`
+	LeadTimeRaw    string        `toml:"lead_time"`
+	NowDurationRaw string        `toml:"now_duration"`
+	StaleAfterRaw  string        `toml:"stale_after"`
+	TextFormat     string        `toml:"text_format"`
+	TooltipFormat  string        `toml:"tooltip_format"`
 
 	// TooltipDays is how many days ahead the tooltip's event list looks.
 	TooltipDays int `toml:"tooltip_days"`
@@ -83,6 +85,7 @@ type CalendarsConfig struct {
 
 const (
 	defaultLeadTime      = 15 * time.Minute
+	defaultNowDuration   = 5 * time.Minute
 	defaultStaleAfter    = 2 * time.Hour
 	defaultTextFormat    = "{start} {summary}"
 	defaultTooltipFormat = "{start}–{end} · {summary}"
@@ -129,6 +132,9 @@ func Load(path string) (*Config, error) {
 func (c *Config) applyDefaults() error {
 	var err error
 	if c.Waybar.LeadTime, err = parseDuration(c.Waybar.LeadTimeRaw, defaultLeadTime, "lead_time"); err != nil {
+		return err
+	}
+	if c.Waybar.NowDuration, err = parseDuration(c.Waybar.NowDurationRaw, defaultNowDuration, "now_duration"); err != nil {
 		return err
 	}
 	if c.Waybar.StaleAfter, err = parseDuration(c.Waybar.StaleAfterRaw, defaultStaleAfter, "stale_after"); err != nil {
@@ -219,6 +225,9 @@ func (c *Config) validate() error {
 	}
 	if c.UI.WeekStart != "monday" && c.UI.WeekStart != "sunday" {
 		return fmt.Errorf("ui.week_start %q: want monday or sunday", c.UI.WeekStart)
+	}
+	if c.Waybar.NowDuration < 0 {
+		return fmt.Errorf("waybar.now_duration must be >= 0, got %s", c.Waybar.NowDuration)
 	}
 	if c.Waybar.TooltipDays < 1 {
 		return fmt.Errorf("waybar.tooltip_days must be >= 1, got %d", c.Waybar.TooltipDays)

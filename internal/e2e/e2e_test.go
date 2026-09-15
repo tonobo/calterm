@@ -128,7 +128,7 @@ func TestSyncThenWaybar(t *testing.T) {
 	}
 
 	cfg := config.WaybarConfig{
-		LeadTime: 15 * time.Minute, StaleAfter: 2 * time.Hour,
+		LeadTime: 15 * time.Minute, NowDuration: 5 * time.Minute, StaleAfter: 2 * time.Hour,
 		TextFormat: "{start} {summary}", TooltipFormat: "{summary}\n{location}",
 	}
 	out := waybar.Render(idx, meta, cfg, nil, now, loc)

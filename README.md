@@ -201,11 +201,16 @@ classes, each stylable:
 
 | Class | Meaning |
 |---|---|
-| `now` | An event is in progress (`percentage` is its completion) |
+| `now` | An event started within `now_duration` and is still running (default 5m) |
 | `soon` | Starts within `lead_time` (default 15m) |
 | `upcoming` | The next event is further out |
 | `none` | Nothing left in the window |
 | `stale` | The cache is older than `stale_after` — the sync timer has probably died |
+
+After `now_duration` expires, the bar advances to the next event even when the
+current event is still running. Set `now_duration = "0s"` under `[waybar]` to
+disable the `now` state entirely. The tooltip continues to include running
+events.
 
 That last one is deliberate. A calendar module that silently shows yesterday's
 meeting is worse than one that admits it is broken.

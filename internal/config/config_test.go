@@ -35,6 +35,7 @@ password_cmd = "pass show webcal/example"
 
 [waybar]
 lead_time = "20m"
+now_duration = "8m"
 stale_after = "3h"
 text_format = "{start} {summary}"
 
@@ -66,6 +67,9 @@ hidden = ["birthdays"]
 	}
 	if cfg.Waybar.LeadTime != 20*time.Minute {
 		t.Errorf("lead_time = %v, want 20m", cfg.Waybar.LeadTime)
+	}
+	if cfg.Waybar.NowDuration != 8*time.Minute {
+		t.Errorf("now_duration = %v, want 8m", cfg.Waybar.NowDuration)
 	}
 	if cfg.Waybar.StaleAfter != 3*time.Hour {
 		t.Errorf("stale_after = %v, want 3h", cfg.Waybar.StaleAfter)
@@ -107,6 +111,9 @@ password_cmd = "echo hunter2"
 	if cfg.Waybar.LeadTime != 15*time.Minute {
 		t.Errorf("default lead_time = %v, want 15m", cfg.Waybar.LeadTime)
 	}
+	if cfg.Waybar.NowDuration != 5*time.Minute {
+		t.Errorf("default now_duration = %v, want 5m", cfg.Waybar.NowDuration)
+	}
 	if cfg.Waybar.StaleAfter != 2*time.Hour {
 		t.Errorf("default stale_after = %v, want 2h", cfg.Waybar.StaleAfter)
 	}
@@ -139,6 +146,26 @@ password_cmd = "echo hunter2"
 	}
 	if cfg.Waybar.TooltipFooter != "" {
 		t.Errorf("default tooltip_footer = %q, want empty", cfg.Waybar.TooltipFooter)
+	}
+}
+
+func TestLoadAllowsZeroNowDuration(t *testing.T) {
+	path := writeConfig(t, `
+[[account]]
+name = "personal"
+url = "https://example.com/dav"
+username = "u"
+password_cmd = "echo p"
+
+[waybar]
+now_duration = "0s"
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Waybar.NowDuration != 0 {
+		t.Errorf("now_duration = %v, want 0", cfg.Waybar.NowDuration)
 	}
 }
 
@@ -246,6 +273,14 @@ password_cmd = "echo p"
 
 [waybar]
 lead_time = "soon"`},
+		{"negative now duration", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[waybar]
+now_duration = "-1m"`},
 		{"tooltip_days zero", `[[account]]
 name = "a"
 url = "https://example.com"

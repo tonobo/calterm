@@ -5,7 +5,7 @@
   padding: 0 10px;
 }
 
-/* An event is happening right now. */
+/* An event started within the configured now duration (default 5 minutes). */
 #custom-calterm.now {
   color: #1e1e2e;
   background-color: #a6e3a1;
