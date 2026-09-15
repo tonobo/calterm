@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for due calterm desktop notifications every minute
+
+[Timer]
+OnStartupSec=30s
+OnUnitActiveSec=1min
+AccuracySec=1s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

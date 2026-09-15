@@ -5,6 +5,7 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -13,14 +14,16 @@ import (
 )
 
 type Config struct {
-	Accounts  []Account       `toml:"account"`
-	WebCals   []WebCal        `toml:"webcal"`
-	Waybar    WaybarConfig    `toml:"waybar"`
-	UI        UIConfig        `toml:"ui"`
-	Calendars CalendarsConfig `toml:"calendars"`
+	Accounts      []Account           `toml:"account"`
+	WebCals       []WebCal            `toml:"webcal"`
+	Waybar        WaybarConfig        `toml:"waybar"`
+	Notifications NotificationsConfig `toml:"notifications"`
+	UI            UIConfig            `toml:"ui"`
+	Calendars     CalendarsConfig     `toml:"calendars"`
 }
 
 var webcalColorPattern = regexp.MustCompile(`^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$`)
+var soundNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 // WebCal is a read-only iCalendar subscription fetched over HTTPS. Name is a
 // stable local ID; the feed's X-WR-CALNAME is used as its display name when
@@ -70,6 +73,34 @@ type WaybarConfig struct {
 	TooltipFooter string `toml:"tooltip_footer"`
 }
 
+// NotificationsConfig controls the cache-only notification command. Calendar
+// rules are deliberately opt-in: installing or upgrading calterm must never
+// start producing desktop notifications by itself.
+type NotificationsConfig struct {
+	Duration      time.Duration                `toml:"-"`
+	DurationRaw   string                       `toml:"duration"`
+	StaleAfter    time.Duration                `toml:"-"`
+	StaleAfterRaw string                       `toml:"stale_after"`
+	Calendars     []NotificationCalendarConfig `toml:"calendar"`
+}
+
+// NotificationCalendarConfig opts one account-scoped calendar into desktop
+// reminders. Calendar uses the same "account/calendar" identity shown by the
+// calendar selector and accepted by calendars.hidden.
+type NotificationCalendarConfig struct {
+	Calendar  string                       `toml:"calendar"`
+	Reminders []NotificationReminderConfig `toml:"reminders"`
+}
+
+// NotificationReminderConfig is one exact pre-event threshold. Sound is a
+// freedesktop sound-theme event ID or an absolute file path; empty requests a
+// silent notification.
+type NotificationReminderConfig struct {
+	Before    time.Duration `toml:"-"`
+	BeforeRaw string        `toml:"before"`
+	Sound     string        `toml:"sound"`
+}
+
 type UIConfig struct {
 	DefaultView string `toml:"default_view"`
 	WeekStart   string `toml:"week_start"`
@@ -84,11 +115,12 @@ type CalendarsConfig struct {
 }
 
 const (
-	defaultLeadTime      = 15 * time.Minute
-	defaultNowDuration   = 5 * time.Minute
-	defaultStaleAfter    = 2 * time.Hour
-	defaultTextFormat    = "{start} {summary}"
-	defaultTooltipFormat = "{start}–{end} · {summary}"
+	defaultLeadTime             = 15 * time.Minute
+	defaultNowDuration          = 5 * time.Minute
+	defaultStaleAfter           = 2 * time.Hour
+	defaultNotificationDuration = time.Second
+	defaultTextFormat           = "{start} {summary} · {relative}"
+	defaultTooltipFormat        = "{start}–{end} · {summary}"
 
 	defaultTooltipDays    = 7
 	defaultTooltipMax     = 10
@@ -131,14 +163,33 @@ func Load(path string) (*Config, error) {
 
 func (c *Config) applyDefaults() error {
 	var err error
-	if c.Waybar.LeadTime, err = parseDuration(c.Waybar.LeadTimeRaw, defaultLeadTime, "lead_time"); err != nil {
+	if c.Waybar.LeadTime, err = parseDuration(c.Waybar.LeadTimeRaw, defaultLeadTime, "waybar.lead_time"); err != nil {
 		return err
 	}
-	if c.Waybar.NowDuration, err = parseDuration(c.Waybar.NowDurationRaw, defaultNowDuration, "now_duration"); err != nil {
+	if c.Waybar.NowDuration, err = parseDuration(c.Waybar.NowDurationRaw, defaultNowDuration, "waybar.now_duration"); err != nil {
 		return err
 	}
-	if c.Waybar.StaleAfter, err = parseDuration(c.Waybar.StaleAfterRaw, defaultStaleAfter, "stale_after"); err != nil {
+	if c.Waybar.StaleAfter, err = parseDuration(c.Waybar.StaleAfterRaw, defaultStaleAfter, "waybar.stale_after"); err != nil {
 		return err
+	}
+	if c.Notifications.StaleAfter, err = parseDuration(c.Notifications.StaleAfterRaw, defaultStaleAfter, "notifications.stale_after"); err != nil {
+		return err
+	}
+	if c.Notifications.Duration, err = parseDuration(c.Notifications.DurationRaw, defaultNotificationDuration, "notifications.duration"); err != nil {
+		return err
+	}
+	for calendarIndex := range c.Notifications.Calendars {
+		calendar := &c.Notifications.Calendars[calendarIndex]
+		for reminderIndex := range calendar.Reminders {
+			reminder := &calendar.Reminders[reminderIndex]
+			if reminder.BeforeRaw == "" {
+				return fmt.Errorf("notifications.calendar %q reminder %d: before is required", calendar.Calendar, reminderIndex)
+			}
+			field := fmt.Sprintf("notifications.calendar %q reminder %d before", calendar.Calendar, reminderIndex)
+			if reminder.Before, err = parseDuration(reminder.BeforeRaw, 0, field); err != nil {
+				return err
+			}
+		}
 	}
 	if c.Waybar.TextFormat == "" {
 		c.Waybar.TextFormat = defaultTextFormat
@@ -161,7 +212,7 @@ func parseDuration(raw string, def time.Duration, field string) (time.Duration, 
 	}
 	d, err := time.ParseDuration(raw)
 	if err != nil {
-		return 0, fmt.Errorf("waybar.%s: %w", field, err)
+		return 0, fmt.Errorf("%s: %w", field, err)
 	}
 	return d, nil
 }
@@ -229,6 +280,42 @@ func (c *Config) validate() error {
 	if c.Waybar.NowDuration < 0 {
 		return fmt.Errorf("waybar.now_duration must be >= 0, got %s", c.Waybar.NowDuration)
 	}
+	if c.Notifications.StaleAfter < 0 {
+		return fmt.Errorf("notifications.stale_after must be >= 0, got %s", c.Notifications.StaleAfter)
+	}
+	if c.Notifications.Duration < 0 {
+		return fmt.Errorf("notifications.duration must be >= 0, got %s", c.Notifications.Duration)
+	}
+	seenNotificationCalendars := make(map[string]bool, len(c.Notifications.Calendars))
+	for i, calendar := range c.Notifications.Calendars {
+		parts := strings.Split(calendar.Calendar, "/")
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("notifications.calendar %d: calendar must be one account/calendar identity", i)
+		}
+		if !seen[parts[0]] && !(parts[0] == "webcal" && webcalNames[parts[1]]) {
+			return fmt.Errorf("notifications.calendar %q: account or WebCal subscription is not configured", calendar.Calendar)
+		}
+		if seenNotificationCalendars[calendar.Calendar] {
+			return fmt.Errorf("duplicate notification calendar %q", calendar.Calendar)
+		}
+		seenNotificationCalendars[calendar.Calendar] = true
+		if len(calendar.Reminders) == 0 {
+			return fmt.Errorf("notifications.calendar %q: at least one reminder is required", calendar.Calendar)
+		}
+		seenThresholds := make(map[time.Duration]bool, len(calendar.Reminders))
+		for reminderIndex, reminder := range calendar.Reminders {
+			if reminder.Before < 0 {
+				return fmt.Errorf("notifications.calendar %q reminder %d: before must be >= 0, got %s", calendar.Calendar, reminderIndex, reminder.Before)
+			}
+			if seenThresholds[reminder.Before] {
+				return fmt.Errorf("notifications.calendar %q: duplicate reminder threshold %s", calendar.Calendar, reminder.Before)
+			}
+			seenThresholds[reminder.Before] = true
+			if !validNotificationSound(reminder.Sound) {
+				return fmt.Errorf("notifications.calendar %q reminder %d: sound must be a freedesktop sound name or absolute file path, got %q", calendar.Calendar, reminderIndex, reminder.Sound)
+			}
+		}
+	}
 	if c.Waybar.TooltipDays < 1 {
 		return fmt.Errorf("waybar.tooltip_days must be >= 1, got %d", c.Waybar.TooltipDays)
 	}
@@ -236,4 +323,14 @@ func (c *Config) validate() error {
 		return fmt.Errorf("waybar.tooltip_max must be >= 1, got %d", c.Waybar.TooltipMax)
 	}
 	return nil
+}
+
+func validNotificationSound(sound string) bool {
+	if sound == "" {
+		return true
+	}
+	if strings.ContainsRune(sound, '\x00') {
+		return false
+	}
+	return soundNamePattern.MatchString(sound) || filepath.IsAbs(sound)
 }

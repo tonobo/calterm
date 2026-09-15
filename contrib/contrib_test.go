@@ -59,6 +59,21 @@ func TestSystemdUnitsReferenceSyncAndTimer(t *testing.T) {
 	}
 }
 
+func TestSystemdNotificationUnitsRunEveryMinute(t *testing.T) {
+	service := read(t, "systemd/calterm-notify.service")
+	for _, want := range []string{"calterm notify", "Type=oneshot", "graphical-session.target"} {
+		if !strings.Contains(service, want) {
+			t.Errorf("the notification service is missing %q", want)
+		}
+	}
+	timer := read(t, "systemd/calterm-notify.timer")
+	for _, want := range []string{"OnStartupSec", "OnUnitActiveSec=1min", "AccuracySec=1s", "Persistent=true", "WantedBy=timers.target"} {
+		if !strings.Contains(timer, want) {
+			t.Errorf("the notification timer is missing %q", want)
+		}
+	}
+}
+
 // `calterm sync` exits 1 whenever any account fails, so the unit WILL be
 // marked failed on such a run. SuccessExitStatus=0 was a no-op -- 0 is
 // already success -- and the comment above it claimed the opposite, telling

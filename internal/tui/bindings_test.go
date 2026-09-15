@@ -36,7 +36,7 @@ func TestChordRootHasTheDocumentedShape(t *testing.T) {
 			t.Errorf("<leader>g%s is not a command", k)
 		}
 	}
-	for _, k := range []string{"s", "f"} {
+	for _, k := range []string{"s", "n", "f"} {
 		if _, ok := leader.Entries[k].(*keys.Command); !ok {
 			t.Errorf("<leader>%s is not a command", k)
 		}
@@ -236,7 +236,7 @@ func TestPopupShowsAllRootEntriesAtASmallTerminal(t *testing.T) {
 	m = next.(Model)
 	m = press(t, m, " ")
 	got := m.View().Content
-	for _, want := range []string{"+view", "+goto", "sync now", "filter events", "choose theme"} {
+	for _, want := range []string{"+view", "+goto", "sync now", "sounds · enter to test", "filter events", "choose theme"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("80x12 popup is missing %q:\n%s", want, got)
 		}

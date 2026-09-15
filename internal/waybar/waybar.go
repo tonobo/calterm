@@ -122,8 +122,12 @@ func activeNowOccurrence(occs []model.Occurrence, now time.Time, window time.Dur
 
 func build(o model.Occurrence, names map[string]string, cfg config.WaybarConfig, now time.Time, loc *time.Location, class string) Output {
 	name := calendarNameFor(o, names)
+	textFormat := cfg.TextFormat
+	if class == ClassUpcoming {
+		textFormat = strings.ReplaceAll(textFormat, "{relative}", emptyMark)
+	}
 	return Output{
-		Text:  Format(cfg.TextFormat, o, name, cfg.AllDayLabel, now, loc, ViewBar),
+		Text:  Format(textFormat, o, name, cfg.AllDayLabel, now, loc, ViewBar),
 		Alt:   class,
 		Class: class,
 	}

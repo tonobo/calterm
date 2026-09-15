@@ -1,0 +1,8 @@
+[Unit]
+Description=Send due calterm desktop notifications
+Documentation=https://github.com/tonobo/calterm
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/go/bin/calterm notify

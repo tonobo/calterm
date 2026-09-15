@@ -17,6 +17,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/tonobo/calterm/internal/config"
+	"github.com/tonobo/calterm/internal/desktop"
 	"github.com/tonobo/calterm/internal/model"
 	"github.com/tonobo/calterm/internal/rsvp"
 	"github.com/tonobo/calterm/internal/store"
@@ -35,6 +36,7 @@ const (
 	viewDetail
 	viewCalendars
 	viewThemePicker
+	viewNotificationSounds
 )
 
 // Model is the root Bubble Tea model. It owns the loaded occurrence set, the
@@ -78,14 +80,15 @@ type Model struct {
 	// when this is true -- otherwise opening the selector and immediately
 	// leaving would rewrite the config, a file holding the user's
 	// password_cmd, for no reason.
-	calDirty    bool
-	focusDay    time.Time
-	now         time.Time
-	width       int
-	height      int
-	status      string
-	statusIsErr bool
-	syncing     bool
+	calDirty            bool
+	focusDay            time.Time
+	now                 time.Time
+	width               int
+	height              int
+	status              string
+	statusIsErr         bool
+	syncing             bool
+	testingNotification bool
 
 	// themes is every theme calterm knows about: the embedded built-ins plus
 	// whatever the user's theme directory contributed. It is loaded once, in
@@ -104,6 +107,10 @@ type Model struct {
 	// themeCursor indexes the theme picker's rows, the same shape calCursor
 	// gives the calendar selector.
 	themeCursor int
+	// installedSounds contains the sound-theme event IDs discovered from the
+	// XDG data paths. soundCursor is independent from every calendar cursor.
+	installedSounds []string
+	soundCursor     int
 
 	filter      textinput.Model
 	filtering   bool
@@ -415,6 +422,11 @@ type rsvpDoneMsg struct {
 	err       error
 }
 
+type notificationTestDoneMsg struct {
+	sound string
+	err   error
+}
+
 // respondRSVP is replaceable in tests so key routing can be exercised without
 // changing a real calendar object.
 var respondRSVP = rsvp.Respond
@@ -467,6 +479,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusIsErr = false
 		return m, nil
 
+	case notificationTestDoneMsg:
+		m.testingNotification = false
+		if msg.err != nil {
+			m.status = "test notification failed: " + msg.err.Error()
+			m.statusIsErr = true
+			return m, nil
+		}
+		if msg.sound == "" {
+			m.status = "test notification sent — sound disabled"
+		} else {
+			m.status = "test notification sent — requested sound: " + msg.sound
+		}
+		m.statusIsErr = false
+		return m, nil
+
 	case hiddenSaveMsg:
 		if msg.err != nil {
 			m.status = "could not save calendar selection: " + msg.err.Error()
@@ -515,6 +542,8 @@ func (m Model) navigateBack() (Model, tea.Cmd, bool) {
 	case viewThemePicker:
 		next, cmd := m.leaveThemePicker()
 		return next, cmd, true
+	case viewNotificationSounds:
+		return m.leaveNotificationSounds(), nil, true
 	case viewDetail:
 		m.view = m.detailReturnView
 		m.detailOccurrence = nil
@@ -658,6 +687,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// leader still opens the which-key popup.
 		if m.view == viewThemePicker {
 			return m.applyTheme()
+		}
+		if m.view == viewNotificationSounds {
+			return m.testSelectedNotificationSound()
 		}
 		if m.view == viewCalendars {
 			rows := calendarRows(m.meta)
@@ -865,6 +897,9 @@ func (m Model) move(dx, dy int) Model {
 		if m.themeCursor >= 0 && m.themeCursor < len(names) {
 			m.styles = m.buildStyles(names[m.themeCursor])
 		}
+	case viewNotificationSounds:
+		m.soundCursor += dy
+		m.clampSoundCursor()
 	default:
 		m.cursor += dy
 		m.clampCursor()
@@ -905,6 +940,13 @@ func (m Model) page(dir int) Model {
 		m.focusDay = m.focusDay.AddDate(0, 0, 7*dir)
 	case viewDay:
 		m.focusDay = m.focusDay.AddDate(0, 0, dir)
+	case viewNotificationSounds:
+		step := m.height - 3
+		if step < 1 {
+			step = 1
+		}
+		m.soundCursor += step * dir
+		m.clampSoundCursor()
 	default:
 		step := m.height - 3 // status and a little context
 		if step < 1 {
@@ -925,6 +967,18 @@ func (m *Model) clampCursor() {
 	}
 	if m.cursor < 0 {
 		m.cursor = 0
+	}
+}
+
+func (m *Model) clampSoundCursor() {
+	if m.soundCursor < 0 {
+		m.soundCursor = 0
+	}
+	if n := len(m.notificationSoundOptions()); m.soundCursor >= n {
+		m.soundCursor = n - 1
+	}
+	if m.soundCursor < 0 {
+		m.soundCursor = 0
 	}
 }
 
@@ -1036,6 +1090,8 @@ func (m Model) render() string {
 		body = RenderCalendars(m.meta, m.hidden, m.calCursor, bodyWidth, bodyHeight, m.styles)
 	case viewThemePicker:
 		body = RenderThemePicker(m.themes.Names(), m.themeCursor, bodyWidth, bodyHeight, m.styles)
+	case viewNotificationSounds:
+		body = RenderNotificationSounds(m.notificationSoundOptions(), m.soundCursor, bodyWidth, bodyHeight, m.styles)
 	default:
 		body = RenderAgenda(m.visible(), m.cursor, bodyWidth, bodyHeight, m.now, m.loc, m.styles, m.names, len(m.hidden) > 0)
 	}
@@ -1152,7 +1208,7 @@ func weekPeriodLabel(days []time.Time) string {
 var statusBadgeNames = map[viewKind]string{
 	viewAgenda: "Agenda", viewMonth: "Month", viewWeek: "Week",
 	viewDay: "Day", viewDetail: "Event", viewCalendars: "Calendars",
-	viewThemePicker: "Themes",
+	viewThemePicker: "Themes", viewNotificationSounds: "Sounds",
 }
 
 // oldestAccountLastSync returns the oldest of every account's LastSync in
@@ -1230,7 +1286,7 @@ func (m Model) renderStatus(width int) string {
 	}
 	qAction := "quit"
 	pending, _ := m.dispatcher.Pending()
-	if pending != nil || m.view == viewDetail || m.view == viewCalendars || m.view == viewThemePicker ||
+	if pending != nil || m.view == viewDetail || m.view == viewCalendars || m.view == viewThemePicker || m.view == viewNotificationSounds ||
 		(m.view == viewDay && m.dayDrilldown) || m.filterQuery != "" {
 		qAction = "back"
 	}
@@ -1342,6 +1398,46 @@ func (m Model) leaveThemePicker() (Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) openNotificationSounds() (Model, tea.Cmd) {
+	if m.view == viewNotificationSounds {
+		return m.leaveNotificationSounds(), nil
+	}
+
+	var leaveCmd tea.Cmd
+	switch m.view {
+	case viewCalendars:
+		m, leaveCmd = m.leaveCalendars()
+	case viewThemePicker:
+		m, _ = m.leaveThemePicker()
+	}
+	m.prevView, m.view = m.view, viewNotificationSounds
+	m.soundCursor = 0
+	return m, leaveCmd
+}
+
+func (m Model) leaveNotificationSounds() Model {
+	m.view = m.prevView
+	return m
+}
+
+func (m Model) testSelectedNotificationSound() (Model, tea.Cmd) {
+	if m.testingNotification {
+		return m, nil
+	}
+	options := m.notificationSoundOptions()
+	if m.soundCursor < 0 || m.soundCursor >= len(options) {
+		return m, nil
+	}
+	sound := options[m.soundCursor].Sound
+	m.testingNotification = true
+	m.status = "sending test notification…"
+	if sound != "" {
+		m.status = "testing sound: " + sound
+	}
+	m.statusIsErr = false
+	return m, m.notificationTestCmd(sound)
+}
+
 // applyTheme commits the theme under the picker's cursor: it stays the
 // active preview, and config.SetTheme persists it as the fully-prefixed
 // canonical name (e.g. "system:catppuccin-mocha") -- the same form Get
@@ -1425,6 +1521,26 @@ var SyncFunc func(ctx context.Context, cfg *config.Config, s *store.Store, now t
 // SyncFunc keeps embedders compatible while still producing correct data.
 var SyncCalendarFunc func(ctx context.Context, cfg *config.Config, s *store.Store, accountID, calendarID string, now time.Time) error
 
+// sendTestNotification is replaceable in tests so exercising the key binding
+// never contacts the real desktop session.
+var sendTestNotification = desktop.NotifyWithDuration
+
+func (m Model) notificationTestCmd(sound string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err := sendTestNotification(ctx, "Calterm notification test", "Desktop notifications are working.", sound, m.cfg.Notifications.Duration)
+		return notificationTestDoneMsg{
+			sound: sound,
+			err:   err,
+		}
+	}
+}
+
+func (m Model) notificationSoundOptions() []notificationSoundOption {
+	return notificationSoundOptions(m.cfg.Notifications, m.installedSounds)
+}
+
 func syncAll(ctx context.Context, cfg *config.Config, s *store.Store, now time.Time) error {
 	if SyncFunc == nil {
 		return fmt.Errorf("sync is not wired up")
@@ -1471,6 +1587,7 @@ func RunFocused(cfg *config.Config, s *store.Store, now time.Time, configPath st
 
 func runModel(m Model, configPath string) error {
 	m = m.loadThemes(userThemesDir())
+	m.installedSounds = desktop.SoundNames()
 	m.configPath = configPath
 	p := tea.NewProgram(m)
 	_, err := p.Run()

@@ -18,6 +18,7 @@ Usage:
   calterm open [--sync] [-config <path>] <event.ics>
                             open an iCalendar event in the TUI
   calterm sync [flags]      fetch calendar changes into the local cache
+  calterm notify [flags]    send due desktop notifications from the cache
   calterm waybar [flags]    print a Waybar JSON status line and exit
   calterm version           print the version
   calterm help              print this message
@@ -45,6 +46,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runTUICommand(args, stdout, stderr)
 	case "sync":
 		return syncCommand(args, stdout, stderr)
+	case "notify":
+		return notifyCommand(args, stdout, stderr)
 	case "open":
 		return openCommand(args, stdout, stderr)
 	case "waybar":

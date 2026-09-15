@@ -39,6 +39,17 @@ now_duration = "8m"
 stale_after = "3h"
 text_format = "{start} {summary}"
 
+[notifications]
+stale_after = "3h"
+duration = "3s"
+
+[[notifications.calendar]]
+calendar = "personal/calendar"
+reminders = [
+  { before = "30m" },
+  { before = "7m", sound = "message-new-instant" },
+]
+
 [ui]
 default_view = "month"
 week_start = "sunday"
@@ -74,6 +85,16 @@ hidden = ["birthdays"]
 	if cfg.Waybar.StaleAfter != 3*time.Hour {
 		t.Errorf("stale_after = %v, want 3h", cfg.Waybar.StaleAfter)
 	}
+	if cfg.Notifications.StaleAfter != 3*time.Hour || cfg.Notifications.Duration != 3*time.Second || len(cfg.Notifications.Calendars) != 1 {
+		t.Errorf("notifications = %+v", cfg.Notifications)
+	} else {
+		calendar := cfg.Notifications.Calendars[0]
+		if calendar.Calendar != "personal/calendar" || len(calendar.Reminders) != 2 ||
+			calendar.Reminders[0].Before != 30*time.Minute || calendar.Reminders[0].Sound != "" ||
+			calendar.Reminders[1].Before != 7*time.Minute || calendar.Reminders[1].Sound != "message-new-instant" {
+			t.Errorf("notification calendar = %+v", calendar)
+		}
+	}
 	if cfg.UI.DefaultView != "month" {
 		t.Errorf("default_view = %q, want month", cfg.UI.DefaultView)
 	}
@@ -86,6 +107,11 @@ func TestLoadWebCalOnlyConfig(t *testing.T) {
 	path := writeConfig(t, `[[webcal]]
 name = "holidays"
 url = "HTTPS://calendar.example/holidays.ics"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "webcal/holidays"
+reminders = [{ before = "1h" }]
 `)
 	cfg, err := Load(path)
 	if err != nil {
@@ -93,6 +119,9 @@ url = "HTTPS://calendar.example/holidays.ics"
 	}
 	if len(cfg.Accounts) != 0 || len(cfg.WebCals) != 1 || cfg.WebCals[0].URL != "HTTPS://calendar.example/holidays.ics" {
 		t.Fatalf("config = %+v", cfg)
+	}
+	if len(cfg.Notifications.Calendars) != 1 || cfg.Notifications.Calendars[0].Reminders[0].Before != time.Hour {
+		t.Fatalf("notification calendars = %+v", cfg.Notifications.Calendars)
 	}
 }
 
@@ -117,7 +146,10 @@ password_cmd = "echo hunter2"
 	if cfg.Waybar.StaleAfter != 2*time.Hour {
 		t.Errorf("default stale_after = %v, want 2h", cfg.Waybar.StaleAfter)
 	}
-	if cfg.Waybar.TextFormat != "{start} {summary}" {
+	if len(cfg.Notifications.Calendars) != 0 || cfg.Notifications.StaleAfter != 2*time.Hour || cfg.Notifications.Duration != time.Second {
+		t.Errorf("default notifications = %+v", cfg.Notifications)
+	}
+	if cfg.Waybar.TextFormat != "{start} {summary} · {relative}" {
 		t.Errorf("default text_format = %q", cfg.Waybar.TextFormat)
 	}
 	if cfg.Waybar.TooltipFormat != "{start}–{end} · {summary}" {
@@ -166,6 +198,34 @@ now_duration = "0s"
 	}
 	if cfg.Waybar.NowDuration != 0 {
 		t.Errorf("now_duration = %v, want 0", cfg.Waybar.NowDuration)
+	}
+}
+
+func TestLoadAllowsAbsoluteNotificationSound(t *testing.T) {
+	path := writeConfig(t, `
+[[account]]
+name = "personal"
+url = "https://example.com/dav"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "personal/calendar"
+reminders = [{ before = "5m", sound = "/opt/example/sounds/alert.oga" }]
+`)
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.Notifications.Calendars[0].Reminders[0].Sound; got != "/opt/example/sounds/alert.oga" {
+		t.Errorf("notification sound = %q", got)
+	}
+}
+
+func TestNotificationSoundRejectsNUL(t *testing.T) {
+	if validNotificationSound("/opt/example/sounds/alert\x00.oga") {
+		t.Fatal("notification sound accepted a NUL byte")
 	}
 }
 
@@ -281,6 +341,109 @@ password_cmd = "echo p"
 
 [waybar]
 now_duration = "-1m"`},
+		{"bad notification duration", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "a/calendar"
+reminders = [{ before = "soon" }]`},
+		{"negative notification duration", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "a/calendar"
+reminders = [{ before = "-1m" }]`},
+		{"negative notification stale duration", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+stale_after = "-1m"`},
+		{"bad notification display duration", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+duration = "briefly"`},
+		{"negative notification display duration", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+duration = "-1s"`},
+		{"invalid notification sound name", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "a/calendar"
+reminders = [{ before = "5m", sound = "../../alert.oga" }]`},
+		{"notification calendar without account", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "calendar"
+reminders = [{ before = "5m" }]`},
+		{"notification calendar with unknown account", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "other/calendar"
+reminders = [{ before = "5m" }]`},
+		{"notification calendar without reminders", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "a/calendar"`},
+		{"notification reminder without threshold", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "a/calendar"
+reminders = [{ sound = "complete" }]`},
+		{"duplicate notification threshold", `[[account]]
+name = "a"
+url = "https://example.com"
+username = "u"
+password_cmd = "echo p"
+
+[notifications]
+[[notifications.calendar]]
+calendar = "a/calendar"
+reminders = [{ before = "5m" }, { before = "5m", sound = "complete" }]`},
 		{"tooltip_days zero", `[[account]]
 name = "a"
 url = "https://example.com"

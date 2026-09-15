@@ -80,6 +80,24 @@ func TestRenderSoon(t *testing.T) {
 	}
 }
 
+func TestRenderRelativeAppearsAtLeadTime(t *testing.T) {
+	start := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
+	cfg := testConfig()
+	cfg.TextFormat = "{start} {summary} · {relative}"
+
+	beforeLeadTime := start.Add(-cfg.LeadTime - time.Minute)
+	got := Render(indexAt(beforeLeadTime, standup(start)), testMeta(), cfg, nil, beforeLeadTime, time.UTC)
+	if got.Class != ClassUpcoming || got.Text != "14:00 Standup" {
+		t.Errorf("before lead time = class %q text %q, want upcoming without relative time", got.Class, got.Text)
+	}
+
+	atLeadTime := start.Add(-cfg.LeadTime)
+	got = Render(indexAt(atLeadTime, standup(start)), testMeta(), cfg, nil, atLeadTime, time.UTC)
+	if got.Class != ClassSoon || got.Text != "14:00 Standup · in 15m" {
+		t.Errorf("at lead time = class %q text %q, want soon with relative time", got.Class, got.Text)
+	}
+}
+
 func TestRenderSoonBoundaryIsInclusive(t *testing.T) {
 	start := time.Date(2026, 6, 10, 14, 0, 0, 0, time.UTC)
 	now := start.Add(-15 * time.Minute)
@@ -861,13 +879,13 @@ func TestRenderTooltipLineAtExactLimitIsUnchanged(t *testing.T) {
 	}
 }
 
-// A summary made of umlauts must be truncated by display cell, not by byte
-// -- each "ä"/"ö"/"ü" is 2 bytes but 1 cell, so a byte-based cap would both
+// A summary made of multi-byte glyphs must be truncated by display cell, not
+// by byte. Each "é" is 2 bytes but 1 cell, so a byte-based cap would both
 // cut the string at the wrong visual width and risk splitting a multi-byte
 // rune, producing invalid UTF-8.
-func TestRenderTooltipTruncatesUmlautsByDisplayCellNotByte(t *testing.T) {
+func TestRenderTooltipTruncatesMultibyteRunesByDisplayCellNotByte(t *testing.T) {
 	now := time.Date(2026, 9, 1, 7, 0, 0, 0, time.UTC)
-	summary := strings.Repeat("ä", 100) // 200 bytes, 100 cells
+	summary := strings.Repeat("é", 100) // 200 bytes, 100 cells
 	e := timedEvent("a", summary, "",
 		time.Date(2026, 9, 1, 7, 0, 0, 0, time.UTC),
 		time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC))
@@ -885,11 +903,11 @@ func TestRenderTooltipTruncatesUmlautsByDisplayCellNotByte(t *testing.T) {
 	if !strings.HasSuffix(line, "…") {
 		t.Errorf("tooltip line = %q, want it to end with the ellipsis mark", line)
 	}
-	// Every rune before the ellipsis must be the umlaut itself -- proof the
+	// Every rune before the ellipsis must be the original glyph -- proof the
 	// cut landed on a rune boundary, not mid-character.
 	for _, r := range strings.TrimSuffix(line, "…") {
-		if r != 'ä' {
-			t.Errorf("tooltip line = %q, contains a rune other than 'ä' before the ellipsis -- truncation split a multi-byte character", line)
+		if r != 'é' {
+			t.Errorf("tooltip line = %q, contains an unexpected rune before the ellipsis -- truncation split a multi-byte character", line)
 			break
 		}
 	}

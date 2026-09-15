@@ -67,6 +67,114 @@ func TestModelOmitsRedundantTopTitle(t *testing.T) {
 	}
 }
 
+func openNotificationSounds(t *testing.T, m Model) Model {
+	t.Helper()
+	m = press(t, m, " ")
+	next, actionCmd := m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	m = next.(Model)
+	if actionCmd == nil {
+		t.Fatal("<space>n produced no action command")
+	}
+	next, _ = m.Update(actionCmd())
+	return next.(Model)
+}
+
+func TestNotificationSoundPickerTestsSelectedConfiguredSound(t *testing.T) {
+	old := sendTestNotification
+	t.Cleanup(func() { sendTestNotification = old })
+	var gotSummary, gotBody, gotSound string
+	var gotDuration time.Duration
+	sendTestNotification = func(_ context.Context, summary, body, sound string, duration time.Duration) error {
+		gotSummary, gotBody, gotSound = summary, body, sound
+		gotDuration = duration
+		return nil
+	}
+
+	m := testModel(t)
+	m.cfg.Notifications.Duration = 3 * time.Second
+	m.cfg.Notifications.Calendars = []config.NotificationCalendarConfig{{
+		Calendar: "personal/work",
+		Reminders: []config.NotificationReminderConfig{{
+			Before: 5 * time.Minute, Sound: "message-new-instant",
+		}},
+	}}
+	m.installedSounds = []string{"alarm-clock-elapsed", "message-new-instant"}
+	m = openNotificationSounds(t, m)
+	if m.view != viewNotificationSounds {
+		t.Fatalf("view = %v, want notification sound picker", m.view)
+	}
+	if got := stripANSI(m.View().Content); !strings.Contains(got, "message-new-instant") || !strings.Contains(got, "alarm-clock-elapsed") {
+		t.Errorf("sound picker is missing configured or installed sounds:\n%s", got)
+	}
+	next, notificationCmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if notificationCmd == nil || !m.testingNotification {
+		t.Fatal("notification action did not start an asynchronous test")
+	}
+	next, _ = m.Update(notificationCmd())
+	m = next.(Model)
+
+	if gotSummary != "Calterm notification test" || gotBody == "" || gotSound != "message-new-instant" {
+		t.Errorf("test notification = %q / %q / %q", gotSummary, gotBody, gotSound)
+	}
+	if gotDuration != 3*time.Second {
+		t.Errorf("test notification duration = %s, want 3s", gotDuration)
+	}
+	if m.testingNotification || m.statusIsErr || !strings.Contains(m.status, "message-new-instant") {
+		t.Errorf("completed test state: testing=%v error=%v status=%q", m.testingNotification, m.statusIsErr, m.status)
+	}
+}
+
+func TestNotificationSoundOptionsDeduplicateAndMarkSources(t *testing.T) {
+	cfg := config.NotificationsConfig{Calendars: []config.NotificationCalendarConfig{
+		{Calendar: "personal/one", Reminders: []config.NotificationReminderConfig{
+			{Before: 30 * time.Minute},
+			{Before: 5 * time.Minute, Sound: "message-new-instant"},
+		}},
+		{Calendar: "personal/two", Reminders: []config.NotificationReminderConfig{
+			{Before: time.Minute, Sound: "message-new-instant"},
+			{Before: 0, Sound: "complete"},
+		}},
+	}}
+	got := notificationSoundOptions(cfg, []string{"alarm-clock-elapsed", "message-new-instant"})
+	if len(got) != 3 || got[0].Sound != "message-new-instant" || !got[0].Configured || !got[0].Installed ||
+		got[1].Sound != "complete" || !got[1].Configured || got[1].Installed ||
+		got[2].Sound != "alarm-clock-elapsed" || got[2].Configured || !got[2].Installed {
+		t.Fatalf("notificationSoundOptions = %+v", got)
+	}
+}
+
+func TestNotificationSoundOptionsKeepConfiguredAbsolutePath(t *testing.T) {
+	cfg := config.NotificationsConfig{Calendars: []config.NotificationCalendarConfig{{
+		Calendar: "personal/one",
+		Reminders: []config.NotificationReminderConfig{{
+			Before: time.Minute, Sound: "/opt/example/sounds/reminder.oga",
+		}},
+	}}}
+	got := notificationSoundOptions(cfg, nil)
+	if len(got) != 1 || got[0].Sound != "/opt/example/sounds/reminder.oga" || !got[0].Configured {
+		t.Fatalf("notificationSoundOptions = %+v", got)
+	}
+}
+
+func TestNotificationTestChordReportsFailure(t *testing.T) {
+	old := sendTestNotification
+	t.Cleanup(func() { sendTestNotification = old })
+	sendTestNotification = func(context.Context, string, string, string, time.Duration) error {
+		return fmt.Errorf("desktop unavailable")
+	}
+
+	m := testModel(t)
+	m = openNotificationSounds(t, m)
+	next, notificationCmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	next, _ = m.Update(notificationCmd())
+	m = next.(Model)
+	if !m.statusIsErr || !strings.Contains(m.status, "desktop unavailable") {
+		t.Errorf("failed test status: error=%v status=%q", m.statusIsErr, m.status)
+	}
+}
+
 func TestNewFocusedOpensOccurrenceFromHiddenCalendar(t *testing.T) {
 	start := time.Date(2026, 9, 15, 11, 0, 0, 0, time.UTC)
 	hidden := model.Occurrence{
@@ -1039,7 +1147,7 @@ func TestStatusBarSpansExactlyTheTerminalWidthAcrossViewsAndStates(t *testing.T)
 	// by a single keypress from the default agenda view at all.
 	views := []viewKind{
 		viewAgenda, viewMonth, viewWeek, viewDay,
-		viewDetail, viewCalendars, viewThemePicker,
+		viewDetail, viewCalendars, viewThemePicker, viewNotificationSounds,
 	}
 	// overfillStatus is long enough to fill (and exceed) the middle segment
 	// at every width in the sweep, including 120 -- it exercises the
@@ -1093,6 +1201,7 @@ func TestStatusBarBadgeShowsTheActiveView(t *testing.T) {
 		{viewWeek, "Week"},
 		{viewDay, "Day"},
 		{viewThemePicker, "Themes"},
+		{viewNotificationSounds, "Sounds"},
 		{viewCalendars, "Calendars"},
 		{viewDetail, "Event"},
 	}
@@ -1111,7 +1220,7 @@ func TestStatusBarDescribesContextualQ(t *testing.T) {
 	if got := stripANSI(m.renderStatus(80)); !strings.Contains(got, "q quit") {
 		t.Errorf("main status = %q, want q quit", got)
 	}
-	for _, view := range []viewKind{viewDetail, viewCalendars, viewThemePicker} {
+	for _, view := range []viewKind{viewDetail, viewCalendars, viewThemePicker, viewNotificationSounds} {
 		m.view = view
 		if got := stripANSI(m.renderStatus(80)); !strings.Contains(got, "q back") {
 			t.Errorf("view %v status = %q, want q back", view, got)
@@ -1381,7 +1490,7 @@ func TestBodyIsLeftPaddedConsistently(t *testing.T) {
 		return mm.View().Content
 	}
 
-	views := []viewKind{viewAgenda, viewMonth, viewWeek, viewDay, viewDetail, viewCalendars, viewThemePicker}
+	views := []viewKind{viewAgenda, viewMonth, viewWeek, viewDay, viewDetail, viewCalendars, viewThemePicker, viewNotificationSounds}
 	for _, v := range views {
 		got := renderView(v)
 		lines := strings.Split(got, "\n")

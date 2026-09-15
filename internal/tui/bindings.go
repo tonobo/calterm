@@ -61,6 +61,7 @@ func chordRoot() *keys.Root {
 					},
 				},
 				"s": action("sync", "sync now"),
+				"n": action("notification.sounds", "sounds · enter to test"),
 				"r": &keys.Group{
 					Description: "+respond",
 					Entries: map[string]keys.Entry{
@@ -132,8 +133,9 @@ var actionTable = map[string]func(Model) (Model, tea.Cmd){
 		m.statusIsErr = false
 		return m, m.syncCmd()
 	},
-	"rsvp.accept":  func(m Model) (Model, tea.Cmd) { return m.startRSVP(rsvp.Accepted) },
-	"rsvp.decline": func(m Model) (Model, tea.Cmd) { return m.startRSVP(rsvp.Declined) },
+	"notification.sounds": func(m Model) (Model, tea.Cmd) { return m.openNotificationSounds() },
+	"rsvp.accept":         func(m Model) (Model, tea.Cmd) { return m.startRSVP(rsvp.Accepted) },
+	"rsvp.decline":        func(m Model) (Model, tea.Cmd) { return m.startRSVP(rsvp.Declined) },
 
 	"filter": func(m Model) (Model, tea.Cmd) {
 		m.filtering = true
@@ -159,6 +161,9 @@ var actionTable = map[string]func(Model) (Model, tea.Cmd){
 		if m.view == viewThemePicker {
 			m, _ = m.leaveThemePicker()
 		}
+		if m.view == viewNotificationSounds {
+			m = m.leaveNotificationSounds()
+		}
 		m.prevView, m.view = m.view, viewCalendars
 		m.calCursor = 0
 		return m, nil
@@ -177,6 +182,9 @@ var actionTable = map[string]func(Model) (Model, tea.Cmd){
 			m.prevView, m.view = m.view, viewThemePicker
 			m.themeCursor = indexOf(m.themes.Names(), m.themeName)
 			return m, leaveCmd
+		}
+		if m.view == viewNotificationSounds {
+			m = m.leaveNotificationSounds()
 		}
 		m.prevView, m.view = m.view, viewThemePicker
 		m.themeCursor = indexOf(m.themes.Names(), m.themeName)

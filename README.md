@@ -8,6 +8,7 @@ and direct CalDAV invitation responses.
 
 - **TUI** — agenda, month grid, week/day timeline, and event detail, built with Bubble Tea.
 - **Waybar** — `calterm waybar` prints your next event as a JSON status line.
+- **Notifications** — optional, deduplicated desktop reminders with sound-theme support.
 - **Offline** — everything reads a local cache. The status bar never touches the network.
 - **Correct recurrences** — RRULE, RDATE, EXDATE, and RECURRENCE-ID overrides, including cancellations and DST transitions.
 
@@ -120,6 +121,7 @@ are. Chords are grouped:
 <space>v   view    a agenda  m month  w week  d day
 <space>g   goto    t today   g first  G last
 <space>s   sync
+<space>n   browse and test notification sounds
 <space>r   respond a accept  d decline  (event detail only)
 <space>f   filter
 <space>c   calendars
@@ -184,6 +186,71 @@ If you already have a `[calendars] hidden` list from before the selector
 existed: those entries used to be skipped during sync entirely; now they are
 downloaded like any other calendar and simply not shown.
 
+## Desktop notifications
+
+Notifications are disabled until at least one account-scoped calendar rule is
+configured. Each calendar can have several exact reminder thresholds, and
+each threshold can independently be silent, use a freedesktop sound-theme
+event ID, or reference an absolute sound-file path:
+
+```toml
+[notifications]
+stale_after = "2h"
+duration = "1s"
+
+[[notifications.calendar]]
+calendar = "personal/personal"
+reminders = [
+  { before = "30m" },
+  { before = "5m", sound = "message-new-instant" },
+  { before = "1m", sound = "message-new-instant" },
+  { before = "0s", sound = "/usr/share/sounds/freedesktop/stereo/complete.oga" },
+]
+```
+
+The `calendar` value is the same `account/calendar` identity used by the
+calendar selector and `[calendars] hidden`; WebCal feeds use `webcal/name`.
+Only listed calendars produce notifications. A `before` value of `0s` means at
+the start time. Each occurrence and threshold is delivered once; calterm
+stores only an opaque hash and its start time in the cache, not another
+readable copy of the event. A short 90-second grace period around each exact
+threshold absorbs timer jitter, but does not replay older thresholds or a
+backlog after a long suspend.
+
+`duration` controls how long each popup remains visible and defaults to one
+second. Set it to `0s` to request a persistent notification.
+
+Declined, cancelled, and all-day events are skipped. Calendar visibility does
+not override an explicit notification rule. A cache older than `stale_after`
+is rejected rather than risking a reminder for an event that may have changed;
+set it to `0s` to disable that safeguard.
+
+`<space>n` opens the notification sound tester. It lists distinct sounds from
+the configured reminders first, then discovers installed freedesktop
+sound-theme event IDs through `$XDG_DATA_HOME/sounds` and
+`$XDG_DATA_DIRS/sounds`. Select a row with `j`/`k` and press `Enter` to send one
+test notification while keeping the tester open. D-Bus itself does not provide
+a method for enumerating notification sounds.
+
+A sound-theme ID is sent as the standard `sound-name` hint; an absolute path is
+sent as `sound-file`. Relative paths and `~` expansion are deliberately not
+accepted. In both cases the desktop notification daemon controls volume and
+playback. A daemon without sound support may still display the notification
+silently.
+
+Install the one-minute user timer alongside the existing sync timer:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp contrib/systemd/calterm-notify.* ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now calterm-notify.timer
+```
+
+`calterm notify` performs one check and exits; no persistent calterm daemon is
+required. Keep `calterm-sync.timer` enabled as well so notifications read a
+fresh cache.
+
 ## Waybar
 
 calterm's status output is cache-only, so the module is instant and works
@@ -199,6 +266,12 @@ Merge `contrib/waybar/module.jsonc` into your Waybar config and add
 `contrib/waybar/style.css` to your stylesheet. The module reports one of five
 classes, each stylable:
 
+The default bar text is `{start} {summary} · {relative}`. `text_format` also
+accepts `{end}`, `{location}`, and `{calendar}`; for example, `{relative}`
+renders as `in 15m` before an event and `now` after it starts. In the bar it is
+hidden while the event is still `upcoming` and appears when the event enters
+the `soon` window at `start - lead_time`.
+
 | Class | Meaning |
 |---|---|
 | `now` | An event started within `now_duration` and is still running (default 5m) |
@@ -206,6 +279,30 @@ classes, each stylable:
 | `upcoming` | The next event is further out |
 | `none` | Nothing left in the window |
 | `stale` | The cache is older than `stale_after` — the sync timer has probably died |
+
+The timing options take effect at these points:
+
+```text
+                 start - lead_time              start       start + now_duration
+                         │                        │                    │
+Waybar      upcoming ────┼────── soon ───────────┼────── now ─────────┼── next/none
+Relative       hidden ───┼────── in Xm ──────────┼────── now ─────────┼── next event
+
+Notification time:
+                target = start - reminder.before         target + 90s grace
+                              │                                  │
+Notify          waiting ──────┼──── eligible; send once ──────────┼── expired
+
+Popup                         shown ├── notifications.duration ──┤ hidden
+
+Tooltip          now ────┼────────── tooltip_days ──────────┼── outside tooltip
+
+Cache age    written ────┼── waybar.stale_after ────────────┼── Waybar stale
+             written ────┼── notifications.stale_after ─────┼── notify skipped
+```
+
+`now` also ends when the event itself ends, whichever comes first. After that,
+the next event is classified as `soon` or `upcoming` using its own start time.
 
 After `now_duration` expires, the bar advances to the next event even when the
 current event is still running. Set `now_duration = "0s"` under `[waybar]` to

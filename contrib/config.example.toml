@@ -47,7 +47,7 @@ now_duration = "5m"
 # If the cache is older than this, the module reports "stale" — your signal
 # that the sync timer has stopped.
 stale_after = "2h"
-text_format = "{start} {summary}"
+text_format = "{start} {summary} · {relative}"
 # One line per event: "09:00–11:00 · Standup", or "full day · Vacation" for an
 # all-day event. {location} and {calendar} are also available -- add them
 # back if you want them, e.g. "{start}–{end} · {summary} · {location}".
@@ -71,6 +71,28 @@ tooltip_footer = ""
 # tooltip_date_fmt = "02.01."
 # all_day_label = "full day"
 # tooltip_footer = "Left click: calendar · right click: sync"
+
+[notifications]
+# How long a popup remains visible. Use "0s" for a persistent notification.
+duration = "1s"
+# Do not notify from an older cache. Set to "0s" to disable this safeguard.
+stale_after = "2h"
+
+# Add one block per account-scoped calendar that should produce reminders.
+# The calendar identity is the same account/calendar value used by
+# [calendars] hidden. Each reminder can independently be silent or carry a
+# freedesktop sound-theme event ID or absolute sound-file path. A before value
+# of "0s" means at the start.
+# [[notifications.calendar]]
+# calendar = "personal/personal"
+# reminders = [
+#   { before = "30m" },
+#   { before = "5m", sound = "message-new-instant" },
+#   { before = "1m", sound = "message-new-instant" },
+#   # Absolute paths are sent as the standard sound-file notification hint:
+#   # { before = "0s", sound = "/usr/share/sounds/freedesktop/stereo/complete.oga" },
+# ]
+# Use <space>n in the TUI to browse installed sounds and test them one at a time.
 
 [ui]
 # agenda, month, week, or day

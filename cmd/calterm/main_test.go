@@ -46,7 +46,7 @@ func TestRunHelpListsSubcommands(t *testing.T) {
 	if code := run([]string{"help"}, &out, &errOut); code != 0 {
 		t.Fatalf("exit code = %d, want 0", code)
 	}
-	for _, want := range []string{"open", "sync", "waybar", "version"} {
+	for _, want := range []string{"open", "sync", "notify", "waybar", "version"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("help output does not mention %q: %s", want, out.String())
 		}

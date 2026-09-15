@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260823001701-96af6d2cb5f6
 	github.com/emersion/go-ical v0.0.0-20250609112844-439c63cef608
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/teambition/rrule-go v1.8.2
 )
 
